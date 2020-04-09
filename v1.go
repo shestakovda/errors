@@ -6,6 +6,8 @@ import (
 	"path"
 	"runtime"
 	"strings"
+
+	"github.com/kr/pretty"
 )
 
 const stackTpl = "%s:%d -> %s()"
@@ -19,18 +21,16 @@ func newErrorV1(text string) Error {
 type v1Error struct {
 	deep   int
 	text   string
-	item   interface{}
-	args   []interface{}
+	detail string
 	stack  []string
+	debug  map[string]string
 	proto  *v1Error
 	reason error
 }
 
-func (e *v1Error) Item() interface{}   { return e.item }
-func (e *v1Error) Args() []interface{} { return e.args }
-func (e *v1Error) Error() string       { return e.text }
-func (e *v1Error) Unwrap() error       { return e.reason }
-func (e *v1Error) WithStack() Error    { return e.withStack() }
+func (e *v1Error) Error() string    { return e.text }
+func (e *v1Error) Unwrap() error    { return e.reason }
+func (e *v1Error) WithStack() Error { return e.withStack() }
 
 func (e *v1Error) Is(err error) bool {
 	if err == nil {
@@ -62,38 +62,78 @@ func (e *v1Error) WithReason(reason error) Error {
 	return err
 }
 
-func (e *v1Error) WithArgs(args ...interface{}) Error {
+func (e *v1Error) WithDetail(tpl string, args ...interface{}) Error {
 	err := e.withStack()
-	err.args = args
-	err.text = fmt.Sprintf(err.text, args...)
+	err.detail = fmt.Sprintf(tpl, args...)
 	return err
 }
 
-func (e *v1Error) WithItem(item interface{}) Error {
+func (e *v1Error) WithDebug(items map[string]interface{}) Error {
 	err := e.withStack()
-	err.item = item
+	err.debug = make(map[string]string, len(items))
+	for key := range items {
+		err.debug[key] = fmt.Sprintf("%#v", pretty.Formatter(items[key]))
+	}
 	return err
 }
 
 func (e *v1Error) Format(f fmt.State, r rune) {
-	f.Write([]byte(e.text))
+	// Сначала всегда на той же строке основное сообщение
+	fmt.Fprintf(f, "> %s", e.text)
 
+	// Затем в скобках детализация для пользователя
+	if e.detail != "" {
+		fmt.Fprintf(f, " (%s)", e.detail)
+	}
+
+	// Если не нужна детальная инфа, на этом все
 	if r != 'v' {
 		return
 	}
 
-	if e.item != nil {
-		fmt.Fprintf(f, " (%+v)", e.item)
+	// Затем, на каждой строчке со сдвигом и кареткой, отладка (если есть)
+	for key := range e.debug {
+		fmt.Fprintf(f, "\n|   %s: %s", key, e.debug[key])
 	}
 
+	// Затем, если нужны подробности, выводим стек
+	if f.Flag('+') && len(e.stack) > 0 {
+		fmt.Fprintf(f, "\n|       %s", strings.Join(e.stack, "\n|       "))
+	}
+
+	// Затем, если есть кто-то в цепочке, выводим его со след. строки
 	if e.reason != nil && e.deep < 10 {
 		e.deep++
-		fmt.Fprintf(f, "\n\t<- %v", e.reason)
+
+		if next, ok := e.reason.(Error); ok {
+			if f.Flag('+') {
+				fmt.Fprintf(f, "\n|-%+v", next)
+			} else {
+				fmt.Fprintf(f, "\n|-%v", next)
+			}
+		} else {
+			fmt.Fprintf(f, "\n|-> %s", e.reason)
+		}
+	}
+}
+
+func (e *v1Error) Export() *View {
+	v := &View{
+		Text:   e.text,
+		Detail: e.detail,
+		Stack:  e.stack,
+		Debug:  e.debug,
 	}
 
-	if f.Flag('+') && len(e.stack) > 0 {
-		fmt.Fprintf(f, "\n\t%s", strings.Join(e.stack, "\n\t"))
+	if e.reason != nil {
+		if next, ok := e.reason.(Error); ok {
+			v.Next = next.Export()
+		} else {
+			v.Next = &View{Text: e.reason.Error()}
+		}
 	}
+
+	return v
 }
 
 func (e *v1Error) withStack() *v1Error {

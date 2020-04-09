@@ -2,7 +2,6 @@ package errors
 
 import (
 	stderr "errors"
-	"fmt"
 )
 
 type Error interface {
@@ -15,28 +14,12 @@ type Error interface {
 	error
 
 	/*
-		Format - стандартный интерфейс форматирования в консоль.
+		Unwrap - движение по цепочке вниз, получение следующей ошибки
 
-		* Выводит сначала собственное сообщение, а затем все сообщения по цепочке, разделенные знаком `<-`
-		*
+		* Перегрузка логики сравнения для использования со стандартным errors.Unwrap
+		* Если цепочка кончилась, возвращает nil
 	*/
-	fmt.Formatter
-
-	/*
-		Item - отладочный объект.
-
-		* Возвращает в точности то же, что было передано в WithItem
-		* Если WithItem не использовалась, возвращает nil
-	*/
-	Item() interface{}
-
-	/*
-		Args - список аргументов для форматирования.
-
-		* Возвращает в точности то же, что было передано в WithArgs
-		* Если WithArgs не использовалась, возвращает nil
-	*/
-	Args() []interface{}
+	Unwrap() error
 
 	/*
 		Is - сравнение с ошибками в цепочке.
@@ -48,8 +31,6 @@ type Error interface {
 		* Если был WithReason, то сравнение идет дальше по цепочке
 	*/
 	Is(err error) bool
-
-	Unwrap() error
 
 	/*
 		WithStack - формирование стека вызовов для локализации ошибки.
@@ -70,25 +51,43 @@ type Error interface {
 	WithReason(err error) Error
 
 	/*
-		WithArgs - добавление аргументов для форматирования сообщения.
+		WithDetail - добавление аргументов для форматирования сообщения.
 
-		* Устанавливает список для выдачи в Args
-		* Использует исходный текст ошибки из New как форматную строку
+		* Устанавливает форматированное детальное описание ошибки для пользователя
 		* Автоматически вызывает WithStack
 	*/
-	WithArgs(args ...interface{}) Error
+	WithDetail(tpl string, args ...interface{}) Error
 
 	/*
-		WithItem - добавление объекта отладочных данных.
+		WithDebug - добавление объекта отладочных данных.
 
-		* Устанавливает объект отладки для выдачи в Item
-		* Использует исходный текст ошибки из New как форматную строку
 		* Автоматически вызывает WithStack
 	*/
-	WithItem(item interface{}) Error
+	WithDebug(items map[string]interface{}) Error
+
+	/*
+		Export - конвертация в нейтральное от реализации представление
+	*/
+	Export() *View
 }
 
 func As(err error, target interface{}) bool { return stderr.As(err, target) }
-func Is(err, target error) bool             { return stderr.Is(err, target) }
-func New(text string) Error                 { return newErrorV1(text) }
-func Unwrap(err error) error                { return stderr.Unwrap(err) }
+func Is(err error, targets ...error) bool {
+	for i := range targets {
+		if stderr.Is(err, targets[i]) {
+			return true
+		}
+	}
+	return false
+}
+func New(text string) Error  { return newErrorV1(text) }
+func Unwrap(err error) error { return stderr.Unwrap(err) }
+
+// View - представление ошибки для простой работы с содержимым
+type View struct {
+	Next   *View
+	Text   string
+	Detail string
+	Stack  []string
+	Debug  map[string]string
+}
