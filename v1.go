@@ -125,7 +125,8 @@ func (e *v1Error) Export() *View {
 		Debug:  e.debug,
 	}
 
-	if e.reason != nil {
+	if e.reason != nil && e.deep < 10 {
+		e.deep++
 		if next, ok := e.reason.(Error); ok {
 			v.Next = next.Export()
 		} else {
@@ -138,10 +139,6 @@ func (e *v1Error) Export() *View {
 
 func (e *v1Error) withStack() *v1Error {
 	var frame int
-
-	if e.proto != nil {
-		return e
-	}
 
 	err := &v1Error{
 		text:  e.text,
