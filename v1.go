@@ -141,9 +141,12 @@ func (e *v1Error) withStack() *v1Error {
 	var frame int
 
 	err := &v1Error{
-		text:  e.text,
-		proto: e,
-		stack: make([]string, 0, 16),
+		text:   e.text,
+		detail: e.detail,
+		debug:  e.debug,
+		reason: e.reason,
+		proto:  e,
+		stack:  make([]string, 0, 16),
 	}
 
 	for {

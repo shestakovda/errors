@@ -91,8 +91,8 @@ func (s *InterfaceSuite) TestFormat() {
 	s.Equal(`
 > error 3 (some 42 msg)
 |   err1: &errors.errorString{s:"EOF"}
-|       v1.go:66 -> errors.(*v1Error).WithDetail()
-|       interface_test.go:69 -> errors_test.(*InterfaceSuite).TestFormat()
+|       v1.go:60 -> errors.(*v1Error).WithReason()
+|       interface_test.go:73 -> errors_test.(*InterfaceSuite).TestFormat()
 |       value.go:460 -> reflect.Value.call()
 |       value.go:321 -> reflect.Value.Call()
 |       suite.go:137 -> suite.Run.func2()
@@ -100,8 +100,8 @@ func (s *InterfaceSuite) TestFormat() {
 |       asm_amd64.s:1357 -> runtime.goexit()
 |-> error 2
 |   list: []string{"some", "test"}
-|       v1.go:72 -> errors.(*v1Error).WithDebug()
-|       interface_test.go:66 -> errors_test.(*InterfaceSuite).TestFormat()
+|       v1.go:60 -> errors.(*v1Error).WithReason()
+|       interface_test.go:73 -> errors_test.(*InterfaceSuite).TestFormat()
 |       value.go:460 -> reflect.Value.call()
 |       value.go:321 -> reflect.Value.Call()
 |       suite.go:137 -> suite.Run.func2()
@@ -115,7 +115,7 @@ func (s *InterfaceSuite) TestFormat() {
 	s.Equal("error 3", v.Text)
 	s.Equal("some 42 msg", v.Detail)
 	s.Len(v.Stack, 7)
-	s.Equal(`v1.go:66 -> errors.(*v1Error).WithDetail()`, v.Stack[0])
+	s.Equal(`v1.go:60 -> errors.(*v1Error).WithReason()`, v.Stack[0])
 	s.Equal(`&errors.errorString{s:"EOF"}`, v.Debug["err1"])
 
 	if v = v.Next; s.NotNil(v) {
@@ -123,7 +123,7 @@ func (s *InterfaceSuite) TestFormat() {
 		s.Equal("error 2", v.Text)
 		s.Empty(v.Detail)
 		s.Len(v.Stack, 7)
-		s.Equal(`v1.go:72 -> errors.(*v1Error).WithDebug()`, v.Stack[0])
+		s.Equal(`v1.go:60 -> errors.(*v1Error).WithReason()`, v.Stack[0])
 		s.Equal(`[]string{"some", "test"}`, v.Debug["list"])
 
 		if v = v.Next; s.NotNil(v) {
