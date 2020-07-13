@@ -68,7 +68,7 @@ func (e *v1Error) WithDetail(tpl string, args ...interface{}) Error {
 	return err
 }
 
-func (e *v1Error) WithDebug(items map[string]interface{}) Error {
+func (e *v1Error) WithDebug(items Debug) Error {
 	err := e.withStack()
 	err.debug = make(map[string]string, len(items))
 	for key := range items {

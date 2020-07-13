@@ -4,6 +4,8 @@ import (
 	stderr "errors"
 )
 
+type Debug map[string]interface{}
+
 type Error interface {
 	/*
 		Error - стандартный интерфейс ошибки.
@@ -63,7 +65,7 @@ type Error interface {
 
 		* Автоматически вызывает WithStack
 	*/
-	WithDebug(items map[string]interface{}) Error
+	WithDebug(dbg Debug) Error
 
 	/*
 		Export - конвертация в нейтральное от реализации представление

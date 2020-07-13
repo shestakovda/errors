@@ -96,8 +96,8 @@ func (s *InterfaceSuite) TestFormat() {
 |       value.go:460 -> reflect.Value.call()
 |       value.go:321 -> reflect.Value.Call()
 |       suite.go:137 -> suite.Run.func2()
-|       testing.go:909 -> testing.tRunner()
-|       asm_amd64.s:1357 -> runtime.goexit()
+|       testing.go:991 -> testing.tRunner()
+|       asm_amd64.s:1373 -> runtime.goexit()
 |-> error 2
 |   list: []string{"some", "test"}
 |       v1.go:60 -> errors.(*v1Error).WithReason()
@@ -105,8 +105,8 @@ func (s *InterfaceSuite) TestFormat() {
 |       value.go:460 -> reflect.Value.call()
 |       value.go:321 -> reflect.Value.Call()
 |       suite.go:137 -> suite.Run.func2()
-|       testing.go:909 -> testing.tRunner()
-|       asm_amd64.s:1357 -> runtime.goexit()
+|       testing.go:991 -> testing.tRunner()
+|       asm_amd64.s:1373 -> runtime.goexit()
 |-> EOF
 `, fmt.Sprintf("\n%+v\n", err))
 
