@@ -1,7 +1,7 @@
-package errors
+package errx
 
 import (
-	stderr "errors"
+	"errors"
 	"fmt"
 	"path"
 	"runtime"
@@ -45,11 +45,11 @@ func (e *v1Error) Is(err error) bool {
 		return true
 	}
 
-	if e.proto != nil && stderr.Is(e.proto, err) {
+	if e.proto != nil && errors.Is(e.proto, err) {
 		return true
 	}
 
-	if e.reason != nil && stderr.Is(e.reason, err) {
+	if e.reason != nil && errors.Is(e.reason, err) {
 		return true
 	}
 

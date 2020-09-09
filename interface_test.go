@@ -1,11 +1,12 @@
-package errors_test
+package errx_test
 
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"testing"
 
-	"github.com/shestakovda/errors"
+	"github.com/shestakovda/errx"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,13 +21,13 @@ type InterfaceSuite struct {
 
 func (s *InterfaceSuite) TestError() {
 	msg := "some msg"
-	err := errors.New(msg).WithStack()
+	err := errx.New(msg).WithStack()
 	s.Equal(msg, err.Error())
 }
 
 func (s *InterfaceSuite) TestDebug() {
 	msg := "some msg"
-	err := errors.New(msg).WithDebug(map[string]interface{}{
+	err := errx.New(msg).WithDebug(errx.Debug{
 		"int":  42,
 		"list": []string{"some", "test"},
 	})
@@ -40,33 +41,36 @@ func (s *InterfaceSuite) TestDebug() {
 
 func (s *InterfaceSuite) TestDetail() {
 	msg := "some msg"
-	err := errors.New(msg).WithDetail("some %d %s", 42, "msg")
+	err := errx.New(msg).WithDetail("some %d %s", 42, "msg")
 	s.Equal(msg, err.Error())
 	s.Equal("some 42 msg", err.Export().Detail)
 }
 
 func (s *InterfaceSuite) TestReason() {
 	err1 := io.EOF
-	err2 := errors.New("some reason")
-	err3 := errors.New("some other")
+	err2 := errx.New("some reason")
+	err3 := errx.New("some other")
 
 	err := err3.WithDetail("some arg").WithReason(err2.WithReason(err1))
 
 	s.False(err.Is(nil))
 	s.True(err.Is(err))
-	s.True(errors.Is(err, err3))
-	s.True(errors.Is(err, err2))
-	s.True(errors.Is(err, err1))
+	s.True(errx.Is(err, err3))
+	s.True(errx.Is(err, err2))
+	s.True(errx.Is(err, err1))
 	s.Equal(err3.Error(), err.Error())
-	s.True(errors.Is(errors.Unwrap(err), err2))
+	s.True(errx.Is(errx.Unwrap(err), err2))
 }
 
 func (s *InterfaceSuite) TestFormat() {
+	const line = ".go:123"
+	const lineS = ".s:1373"
+
 	err1 := io.EOF
-	err2 := errors.New("error 2").WithDebug(map[string]interface{}{
+	err2 := errx.New("error 2").WithDebug(errx.Debug{
 		"list": []string{"some", "test"},
 	})
-	err3 := errors.New("error 3").WithDetail("some %d %s", 42, "msg").WithDebug(map[string]interface{}{
+	err3 := errx.New("error 3").WithDetail("some %d %s", 42, "msg").WithDebug(errx.Debug{
 		"err1": err1,
 	})
 
@@ -91,31 +95,31 @@ func (s *InterfaceSuite) TestFormat() {
 	s.Equal(`
 > error 3 (some 42 msg)
 |   err1: &errors.errorString{s:"EOF"}
-|       v1.go:60 -> errors.(*v1Error).WithReason()
-|       interface_test.go:73 -> errors_test.(*InterfaceSuite).TestFormat()
-|       value.go:460 -> reflect.Value.call()
-|       value.go:321 -> reflect.Value.Call()
-|       suite.go:137 -> suite.Run.func2()
-|       testing.go:991 -> testing.tRunner()
+|       error_v1.go:123 -> errx.(*v1Error).WithReason()
+|       interface_test.go:123 -> errx_test.(*InterfaceSuite).TestFormat()
+|       value.go:123 -> reflect.Value.call()
+|       value.go:123 -> reflect.Value.Call()
+|       suite.go:123 -> suite.Run.func2()
+|       testing.go:123 -> testing.tRunner()
 |       asm_amd64.s:1373 -> runtime.goexit()
 |-> error 2
 |   list: []string{"some", "test"}
-|       v1.go:60 -> errors.(*v1Error).WithReason()
-|       interface_test.go:73 -> errors_test.(*InterfaceSuite).TestFormat()
-|       value.go:460 -> reflect.Value.call()
-|       value.go:321 -> reflect.Value.Call()
-|       suite.go:137 -> suite.Run.func2()
-|       testing.go:991 -> testing.tRunner()
+|       error_v1.go:123 -> errx.(*v1Error).WithReason()
+|       interface_test.go:123 -> errx_test.(*InterfaceSuite).TestFormat()
+|       value.go:123 -> reflect.Value.call()
+|       value.go:123 -> reflect.Value.Call()
+|       suite.go:123 -> suite.Run.func2()
+|       testing.go:123 -> testing.tRunner()
 |       asm_amd64.s:1373 -> runtime.goexit()
 |-> EOF
-`, fmt.Sprintf("\n%+v\n", err))
+`, lineSRx.ReplaceAllString(lineRx.ReplaceAllString(fmt.Sprintf("\n%+v\n", err), line), lineS))
 
 	v := err.Export()
 
 	s.Equal("error 3", v.Text)
 	s.Equal("some 42 msg", v.Detail)
 	s.Len(v.Stack, 7)
-	s.Equal(`v1.go:60 -> errors.(*v1Error).WithReason()`, v.Stack[0])
+	s.Equal(`error_v1.go:123 -> errx.(*v1Error).WithReason()`, lineRx.ReplaceAllString(v.Stack[0], line))
 	s.Equal(`&errors.errorString{s:"EOF"}`, v.Debug["err1"])
 
 	if v = v.Next; s.NotNil(v) {
@@ -123,7 +127,7 @@ func (s *InterfaceSuite) TestFormat() {
 		s.Equal("error 2", v.Text)
 		s.Empty(v.Detail)
 		s.Len(v.Stack, 7)
-		s.Equal(`v1.go:60 -> errors.(*v1Error).WithReason()`, v.Stack[0])
+		s.Equal(`error_v1.go:123 -> errx.(*v1Error).WithReason()`, lineRx.ReplaceAllString(v.Stack[0], line))
 		s.Equal(`[]string{"some", "test"}`, v.Debug["list"])
 
 		if v = v.Next; s.NotNil(v) {
@@ -135,3 +139,6 @@ func (s *InterfaceSuite) TestFormat() {
 		}
 	}
 }
+
+var lineRx = regexp.MustCompile(`\.go:\d+`)
+var lineSRx = regexp.MustCompile(`\.s:\d+`)

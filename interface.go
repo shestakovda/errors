@@ -1,10 +1,6 @@
-package errors
+package errx
 
-import (
-	stderr "errors"
-)
-
-type Debug map[string]interface{}
+import "errors"
 
 type Error interface {
 	/*
@@ -73,17 +69,19 @@ type Error interface {
 	Export() *View
 }
 
-func As(err error, target interface{}) bool { return stderr.As(err, target) }
+type Debug map[string]interface{}
+
+func As(err error, target interface{}) bool { return errors.As(err, target) }
 func Is(err error, targets ...error) bool {
 	for i := range targets {
-		if stderr.Is(err, targets[i]) {
+		if errors.Is(err, targets[i]) {
 			return true
 		}
 	}
 	return false
 }
 func New(text string) Error  { return newErrorV1(text) }
-func Unwrap(err error) error { return stderr.Unwrap(err) }
+func Unwrap(err error) error { return errors.Unwrap(err) }
 
 // View - представление ошибки для простой работы с содержимым
 type View struct {
