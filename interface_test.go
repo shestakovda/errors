@@ -53,13 +53,45 @@ func (s *InterfaceSuite) TestReason() {
 
 	err := err3.WithDetail("some arg").WithReason(err2.WithReason(err1))
 
-	s.False(err.Is(nil))
 	s.True(err.Is(err))
 	s.True(errx.Is(err, err3))
 	s.True(errx.Is(err, err2))
 	s.True(errx.Is(err, err1))
+	s.False(errx.Is(err, nil))
 	s.Equal(err3.Error(), err.Error())
 	s.True(errx.Is(errx.Unwrap(err), err2))
+
+	exp := errx.New("")
+	s.True(errx.As(err, &exp))
+
+	s.True(exp.Is(exp))
+	s.True(errx.Is(exp, err3))
+	s.True(errx.Is(exp, err2))
+	s.True(errx.Is(exp, err1))
+	s.False(errx.Is(exp, nil))
+	s.Equal(err3.Error(), exp.Error())
+	s.True(errx.Is(errx.Unwrap(exp), err2))
+}
+
+func (s *InterfaceSuite) TestPack() {
+	err1 := io.EOF
+	err2 := errx.New("some reason")
+	err3 := errx.New("some other").WithDebug(errx.Debug{
+		"list": []string{"some", "test"},
+	})
+
+	err := err3.WithDetail("some arg").WithReason(err2.WithReason(err1))
+
+	res := errx.Unpack(err.Pack())
+
+	s.False(res.Is(nil))
+	s.True(res.Is(res))
+	s.True(errx.Is(res, err3))
+	s.True(errx.Is(res, err2))
+	s.True(errx.Is(res, err1))
+	s.Equal(err3.Error(), res.Error())
+	s.True(errx.Is(errx.Unwrap(res), err2))
+	s.Contains(fmt.Sprintf("%+v", res), `list: []string{"some", "test"}`)
 }
 
 func (s *InterfaceSuite) TestFormat() {

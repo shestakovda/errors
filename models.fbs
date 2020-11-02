@@ -1,0 +1,17 @@
+// FlatBuffers Schema
+// http://google.github.io/flatbuffers/
+
+namespace models;
+
+table KeyValue {
+    key:string;
+    value:string;
+}
+
+table ErrorModel {
+    next:ErrorModel;
+    text:string;
+    detail:string;
+    stack:[string];
+    debug:[KeyValue];
+}

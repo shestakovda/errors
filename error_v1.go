@@ -6,16 +6,25 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/kr/pretty"
+
+	fbs "github.com/google/flatbuffers/go"
 )
 
 const stackTpl = "%s:%d -> %s()"
+
+var fbsPool = sync.Pool{New: func() interface{} { return fbs.NewBuilder(128) }}
 
 func newErrorV1(text string) Error {
 	return &v1Error{
 		text: text,
 	}
+}
+
+func unpackV1(buf []byte) Error {
+	return new(v1Error).importModel(GetRootAsErrorModel(buf, 0).UnPack())
 }
 
 type v1Error struct {
@@ -115,6 +124,7 @@ func (e *v1Error) Format(f fmt.State, r rune) {
 			fmt.Fprintf(f, "\n|-> %s", e.reason)
 		}
 	}
+	e.deep = 0
 }
 
 func (e *v1Error) Export() *View {
@@ -133,8 +143,17 @@ func (e *v1Error) Export() *View {
 			v.Next = &View{Text: e.reason.Error()}
 		}
 	}
-
+	e.deep = 0
 	return v
+}
+
+func (e *v1Error) Pack() []byte {
+	buf := fbsPool.Get().(*fbs.Builder)
+	buf.Finish(e.exportModel().Pack(buf))
+	res := buf.FinishedBytes()
+	buf.Reset()
+	fbsPool.Put(buf)
+	return res
 }
 
 func (e *v1Error) withStack() *v1Error {
@@ -161,4 +180,49 @@ func (e *v1Error) withStack() *v1Error {
 	}
 
 	return err
+}
+
+func (e *v1Error) exportModel() *ErrorModelT {
+	m := &ErrorModelT{
+		Text:   e.text,
+		Detail: e.detail,
+		Stack:  e.stack,
+		Debug:  make([]*KeyValueT, 0, len(e.debug)),
+	}
+
+	for k, v := range e.debug {
+		m.Debug = append(m.Debug, &KeyValueT{
+			Key:   k,
+			Value: v,
+		})
+	}
+
+	if e.reason != nil && e.deep < 10 {
+		e.deep++
+		if next, ok := e.reason.(*v1Error); ok {
+			m.Next = next.exportModel()
+		} else {
+			m.Next = &ErrorModelT{Text: e.reason.Error()}
+		}
+	}
+
+	e.deep = 0
+	return m
+}
+
+func (e *v1Error) importModel(m *ErrorModelT) *v1Error {
+	e.text = m.Text
+	e.detail = m.Detail
+	e.stack = m.Stack
+	e.debug = make(map[string]string, len(m.Debug))
+
+	for i := range m.Debug {
+		e.debug[m.Debug[i].Key] = m.Debug[i].Value
+	}
+
+	if m.Next != nil {
+		e.reason = new(v1Error).importModel(m.Next)
+	}
+
+	return e
 }

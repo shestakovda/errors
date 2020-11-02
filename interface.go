@@ -67,6 +67,11 @@ type Error interface {
 		Export - конвертация в нейтральное от реализации представление
 	*/
 	Export() *View
+
+	/*
+		Pack - конвертация в байты для передачи через RPC или другими способами
+	*/
+	Pack() []byte
 }
 
 type Debug map[string]interface{}
@@ -80,8 +85,9 @@ func Is(err error, targets ...error) bool {
 	}
 	return false
 }
-func New(text string) Error  { return newErrorV1(text) }
-func Unwrap(err error) error { return errors.Unwrap(err) }
+func New(text string) Error   { return newErrorV1(text) }
+func Unpack(buf []byte) Error { return unpackV1(buf) }
+func Unwrap(err error) error  { return errors.Unwrap(err) }
 
 // View - представление ошибки для простой работы с содержимым
 type View struct {
